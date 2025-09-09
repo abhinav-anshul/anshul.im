@@ -10,7 +10,7 @@ import { ExternalLink } from 'lucide-react'; function Header() {
                     </div>
                 </div>
                 <div>
-                    <a href="/resume.pdf" target="_blank">
+                    <a href="/Abhinav-Anshul-Resume.pdf" target="_blank">
                         <div className="flex items-center space-x-1">
                             <div className='text-xs'>
                                 Resume
