@@ -10,15 +10,19 @@ import { ExternalLink } from 'lucide-react'; function Header() {
                     </div>
                 </div>
                 <div>
-                    <div className="flex items-center space-x-1">
-                        <div className='text-xs'>Resume</div>
-                        <div className='-translate-y-0.5'> 
-                            <ExternalLink strokeWidth={1.5} size={16} />
+                    <a href="/resume.pdf" target="_blank">
+                        <div className="flex items-center space-x-1">
+                            <div className='text-xs'>
+                                Resume
+                            </div>
+                            <div className='-translate-y-0.5'>
+                                <ExternalLink strokeWidth={1.5} size={16} />
+                            </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
             </div>
-            <hr className='my-2 text-gray-300'/>
+            <hr className='my-2 text-gray-300' />
         </header>
     )
 }
