@@ -5,7 +5,7 @@ function Today() {
         <section className="space-y-4">
             <Heading text="Today" />
             <div className="text-gray-600">
-               <div className="leading-relaxed">I work at POP as a Senior Frontend Engineer. I am responsible for building end to end web initiatives. I mostly work with JavaScript, React, Next.js, Tailwind CSS and all things web.</div>
+               <div className="leading-relaxed">I work at POP as a Senior Frontend Engineer. I am responsible for building end to end web initiatives. I mostly work with JavaScript, TypeScript, React, Next.js, Tailwind CSS and all things web.</div>
             </div>
         </section>
     )
