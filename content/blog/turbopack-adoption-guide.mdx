@@ -1,0 +1,150 @@
+---
+title: "Turbopack adoption guide: Overview, examples, and alternatives"
+date: 2024-08-21
+description: Turbopack is a next-generation Rust-based incremental bundler optimized for JavaScript and TypeScript. This guide explores its features, performance benefits, and how it compares to webpack and Vite.
+---
+
+## Introduction to Turbopack
+
+Turbopack is often considered the natural successor of webpack. While webpack is still widely used in countless production applications, it has its own shortcomings, such as slower builds, poor hot module replacement, and tree shaking.
+
+Numerous open source learnings led webpack's creator, Tobias Koppers, to develop Turbopack to solve pain points caused by webpack over the years.
+
+## Why use Turbopack?
+
+When starting a new JavaScript project, you have a ton of good options now in terms of JavaScript bundlers and compilers. Turbopack is one such option that has outperformed a lot of other popular bundlers today.
+
+Turbopack simply started out as a project to move away from JavaScript-based bundlers like Babel, Terser, webpack, and others to provide more efficient bundling in Next.js projects. It addressed the shortcomings and issues of those bundlers, especially webpack.
+
+### Performance
+
+The Turbopack team has provided a benchmark comparison with other popular tools with various methodologies. According to the team, it seems to be:
+
+- Five times faster than Vite's hot module reload in almost all scenarios and for apps of various sizes
+- 10x faster than Vite, or up to 20x faster for larger, more complex applications
+- 700x faster than webpack
+
+### Ease of use
+
+At the time of writing this article, the public CLI is not available yet, and you can only use Turbopack with the latest Next.js version.
+
+Turbopack comes set up out-of-the-box when you install Next.js using the CLI. You'll be all set to write JavaScript and TypeScript in your app, with Turborepo being the default option for bundling your code back to browser-compatible JavaScript.
+
+In terms of usability and learning curve, you can pick it up quickly if you already know how basic bundlers work. Turborepo has familiar surface-level JavaScript APIs that are easy to use with basic configuration in the Next.js codebase.
+
+### Bundle size
+
+Turbo has a significantly smaller bundle size compared to webpack. As of now, since it's only available with Next.js, it's hard to comprehend the exact bundle size. However, you can always check the Next.js apps bundled with webpack vs. Turbopack, and you should notice that Turbopack's bundle size is drastically smaller.
+
+### Community & ecosystem
+
+Turbopack is relatively early in its development, so you won't find very exhaustive documentation or an ecosystem as large as webpack's or Vite's. That also results in limited plugins and general community support.
+
+But fortunately, the Turbopack team has a very structured and well-planned roadmap. They plan to make Turbopack compatible with more frameworks and libraries, starting with SvelteKit. Also, they're working on their own CLI to build applications from scratch that are not necessarily tied to a particular library.
+
+## Getting started with Turbopack
+
+Getting started with Turbopack is quite straightforward. At the time of writing this article, Turbopack is available to use with Next.js v14 and will be released as a standalone CLI in the future along with support for other libraries like Vue, Svelte, etc.
+
+Make sure you have Node installed on your local machine. You can get started by installing Next.js:
+
+```bash
+npx create-next-app --example-app with-turbopack
+```
+
+Notice the `with-turbopack` flag that allows Next.js to use Turbopack as a bundler for a TypeScript codebase. Once installed, you can simply run the project using `npm run dev`.
+
+In the `package.json` file, make sure to add the `--turbo` flag in the `dev` script tag like so:
+
+```json
+{
+  "scripts": {
+      "dev": "next dev --turbo"
+  }
+}
+```
+
+Now, you are all set to use Turbopack to bundle your TypeScript code in your Next.js app.
+
+## Key Turbopack features to know
+
+Let's look at some of the key concepts of Turbopack that made Next.js move away from Webpack to Turbopack and why it is the future for JavaScript bundlers or apps of any size:
+
+- **The Turbo engine** — At its core, Turbopack is built on top of a reusable library written in Rust called the Turbo engine. In a Turbo engine application, you can mark certain functions as "to be remembered." When these functions are called, the Turbo engine remembers why they were called and saves them in an in-memory cache. These various in-memory caches help with incremental builds that make Turbopack extremely fast so that any of your developmental changes get served immediately
+
+- **Internal usage of swc** — Turbopack internally uses the swc package to bundle TypeScript and JavaScript files so it matches the available ECMAScript support for swc or anything in general that swc supports
+
+- **TypeScript support** — Similar to JavaScript, Turbopack also supports TypeScript or `.ts` files. However, it doesn't perform type checks because it uses SWC for compilation, which doesn't perform any static type checking for TypeScript
+
+- **HMR and Fast Refresh** — Turbopack has the industry's best hot module replacement (HMR) and Fast Refresh built on top of HMR. However, the Fast Refresh feature is currently limited to only React, with upcoming support in the works for Svelte and Vue
+
+- **Browserlist support** — Browserlist has become the industry standard while targeting the browser version for the final build. Therefore, Turbopack supports Browserlist out-of-the-box
+
+To use Browserlist, you can simply add the config to the `package.json` file, and Turbopack will support it:
+
+```json
+{
+  "browserslist": ["last 2 version", "> 1%", "not dead"]
+}
+```
+
+## Turbopack vs. other popular bundlers
+
+What are some of the factors that make a bundler a "good" option for a project? Here are a few:
+
+- Combining various files efficiently to reduce HTTP network calls
+- Minifying a bundle size without affecting any functionality
+- Transpilation of newer ECMAScript into browser-supported JavaScript
+- Eliminating dead, redundant code in the final bundle or build through tree-shaking
+- Allowing quick updates using best-in-class HMR
+- Providing optimized asset handling for images, CSS, fonts, and more
+
+Now, Turbopack is well-positioned to deal with all these points efficiently. However, other bundlers like webpack and Vite are popular for good reason. Let's see a quick rundown on how Turbopack compares with these two other bundlers.
+
+### Turbopack vs. webpack
+
+webpack is by far the most used bundler today in production apps. It's highly configurable compared to Tuborepo thanks to huge amounts of support from the open source community, while Turbopack has a lot of catching up to do.
+
+However, configuring webpack is daunting, and there's a steep learning curve to consider. Meanwhile, at the moment, Turbopack is a no-brainer to work with and has everything out of the box.
+
+Since Turbopack was specifically created by webpack's creator to address its pain points, it's easy to think of Turbopack as the best choice between the two. It's extremely efficient in bundling and HMR, while webpack can be a hit-or-miss situation.
+
+However, if community support, documentation, maturity and stability, and flexibility are important factors for you, you might want to consider sticking with webpack for now.
+
+Likewise, if there are any webpack plugins that don't yet exist in Turbopack's plugin ecosystem, or you're working on an existing project that uses webpack, migrating to Turbopack might not be worth the effort.
+
+### Turbopack vs. Vite
+
+Vite uses ES modules during development and Rollup for creating production bundles, so it may be more compatible with certain projects.
+
+Vite's Fast Refresh and HMR are practically on par with the Turbopack and also quite efficient in handling large-scale production bundling, although Turbopack still has the edge in terms of performance and speed. According to some unofficial estimates, it could be 10x faster than Vite.
+
+Also, Vite's ecosystem and plugin support is significantly better than Turbopack thanks to its open source community. Vite recently became quite popular as it supports a huge number of frameworks and libraries. It's also a little more mature compared to Turbopack.
+
+If you're working with Next.js, Turbopack's tight integration with the framework may make it a better choice for your needs. It could also be a good option for new projects — however, if plugin support, compatibility with older browsers, and other Vite-specific features are important, it's still an excellent and highly performant option.
+
+### Comparison table: Turbopack vs. webpack vs. Vite
+
+Let's recap some of the similarities and differences between Turbopack, webpack, and Vite:
+
+| Aspects | Webpack | Vite | Turbopack |
+|---------|---------|------|-----------|
+| Initial release | 2012 | 2020 | 2022 |
+| Developed using… | JavaScript | JavaScript | Rust |
+| Development speed | Slower when compared to modern day bundlers | Fast due to ES based bundling | Extremely fast, perfect for large codebases. could be 10x faster than its predecessors |
+| Hot Module Replacement (HMR) | Substandard | Fast | Fast with in-place caching strategies |
+| Community | Widely known with extensive community support | Much known with growing codebases | Very limitedly known but getting traction rapidly |
+| Tree shaking | Yes | Yes | Yes |
+| Code splitting | Yes | Yes | Yes |
+| Learning curve | Steeper, hence complex | Easy to setup with JavaScript projects | Fair, but much easier than its predecessor, webpack |
+| Browser support | Both legacy and modern browsers | More focused on modern browsers | More focused on modern browsers |
+| Supported framework | Works with most frameworks | Out-of-the-box integration with React & Vue | Only Next.js integration available now but public CLI is in the works |
+| Open source | Yes | Yes | Yes |
+
+This comparison table should give you a great starting point to better evaluate these three tools and determine which one is best suited to your needs.
+
+## Conclusion
+
+If you're working with a Next.js application, Turbopack is clearly the best choice you have today. While other bundlers like webpack or Parcel are highly configurable, there's a slim chance you might be doing those configurations yourself while bundling Next.js apps.
+
+However, if you are doing a modern JavaScript or TypeScript setup from scratch, Parcel or esbuild might be the better choices — at least for now, until we get a public CLI and more plugin support for Turbopack.

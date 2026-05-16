@@ -4,8 +4,8 @@ function Today() {
     return (
         <section className="space-y-4">
             <Heading text="Today" />
-            <div className="text-gray-600">
-               <div className="leading-relaxed">I work at POP as a Senior Frontend Engineer. I am responsible for building end to end web initiatives. I mostly work with JavaScript, TypeScript, React, Next.js, Tailwind CSS and all things web.</div>
+            <div className="text-sm text-gray-600 dark:text-neutral-400">
+               <div className="leading-relaxed">I&apos;m working as a Senior Software Engineer at POP currently, shipping a number of products & services that powers the POP App on the Play/Android store. I worked on Dashboards, Agentic AI Chatbot and all the cool web stuff!</div>
             </div>
         </section>
     )

@@ -3,15 +3,15 @@ import { ExternalLink } from 'lucide-react'; function Header() {
         <header>
             <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                    <div className="rounded-full bg-blue-200 w-15 h-15"></div>
+                    <div className="avatar-shimmer rounded-full w-14 h-14"></div>
                     <div className='leading-none'>
-                        <h1 className="font-semibold text-lg text-gray-800">Abhinav Anshul</h1>
-                        <div className='text-gray-700 text-sm font-medium -mt-1'>Design Engineer</div>
+                        <h1 className="font-semibold text-lg text-gray-800 dark:text-neutral-200">Abhinav Anshul</h1>
+                        <div className='text-gray-700 dark:text-neutral-400 text-sm font-medium -mt-1'>Product Engineer</div>
                     </div>
                 </div>
                 <div>
                     <a href="/Abhinav-Anshul-Resume.pdf" target="_blank">
-                        <div className="flex items-center space-x-1">
+                        <div className="flex items-center space-x-1 text-gray-700 dark:text-neutral-300">
                             <div className='text-xs'>
                                 Resume
                             </div>
@@ -22,7 +22,7 @@ import { ExternalLink } from 'lucide-react'; function Header() {
                     </a>
                 </div>
             </div>
-            <hr className='my-2 text-gray-300' />
+            <hr className='my-2 border-gray-300 dark:border-neutral-800' />
         </header>
     )
 }

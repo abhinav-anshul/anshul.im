@@ -1,0 +1,253 @@
+---
+title: "Exploring React Router's data, navigation, and error handling APIs"
+date: 2022-12-22
+description: React Router v6.4 introduces new data fetching, navigation, and error handling APIs borrowed from Remix, significantly improving developer experience and UX by eliminating manual state management and enabling data fetching before component rendering.
+---
+
+## Data fetching in React Router v6.4
+
+Let's start with a very simple data fetching logic. You might be familiar with the pattern given below. After all, this is how we have fetched data from an API in React components.
+
+You simply create a `fetch` function that calls an API (in this case, `getBlog`) and passes it over to the `useEffect` Hook. That Hook will re-fetch whenever an ID from `URL` changes, reflecting the blog post you are on.
+
+And finally, you handle loading and error states manually with the help of `useState` Hook:
+
+```jsx
+import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { getBlog } from './utils/api'
+
+function BlogDetail(){
+    const [isLoading, setIsLoading] = useState(false);
+    const [isError, setError] = useState(null);
+    const [blog, setBlog] = useState(null);
+
+{/* fetching id from URL dynamically */}
+const params = useParams();
+const id = params.id;
+
+async function getBlogs(){
+    setIsLoading(true)
+    try {
+        const blog = await getBlog(id);
+        setBlog(blog)
+    }
+    catch(error) {
+        setError(error.message) 
+    }
+    finally{
+        setIsLoading(false)
+    }
+}
+
+useEffect(() => {
+  getBlogs()
+}, [id])
+
+return (
+    <>
+        {isLoading && <p>Loading...</p>}
+        {isError && !isLoading && <p>Oops! An Error has Occurred, Try Again</p>}
+        <BlogPost heading={blog.heading} detail={blog.detail} />
+    <>
+)
+}
+```
+
+## Refactoring your React component
+
+While this pattern is encouraged and works well, it has some downsides that React Router v6.4 aims to solve. Foremost, the data fetching is a lot of code for a single request. At first glance, it looks fairly standard to handle all these state values for error, loaders, etc.
+
+However, as the application grows, it wreaks havoc on the codebase. Another big disadvantage with React apps like these is fetching itself. The `useEffect()` Hook only runs after the component has been rendered. So, in other words, you can only start fetching after the basic UI has been printed on the screen. You would only see loaders in that time frame, which does not make for a good UX.
+
+React Router encourages removing all these chunks of code for fetching in the component to solve this issue. And instead, use the loader pattern introduced in Remix and React router v6.4.
+
+You can begin refactoring by removing all the loading and error states and the conditional logic in the `return` method:
+
+```jsx
+function BlogDetail(){
+    const [blog, setBlog] = useState(null);
+    const params = useParams();
+    const id = params.id;
+return (
+    ...
+    )
+}
+
+export function BlogDetailLoader(id){
+    return getBlog(id)
+}
+```
+
+The new loader and data APIs will now handle the data fetching in the component. Notice the `BlogDetailLoader` function in the refactored component above. It can now be used to expose the data received by `getBlog` (that is calling the API) to the `BlogDetail` React component.
+
+Now, to make your `BlogDetailLoader` function work, pass a new `loader` API where you have defined all your routes (possibly in the `App.js` file):
+
+```jsx
+import { BlogDetailLoader, BlogDetail } from ''../BlogDetail";
+
+<Route path="/blog" element={<GenericBlogLayout />}>
+    <Router path=":id" element={<BlogDetail />}  
+        loader={BlogDetailLoader} />
+</Route>
+```
+
+By using the `loader` API in React Router v6.4, your `BlogDetail` component can now access the data easily returned by `BlogDetailLoader`:
+
+```jsx
+import { useDataLoader } from 'react-router-dom';
+
+function BlogDetail(){
+
+{/* data variable has now access to whatever the loader has returned (in this case getBlog) */}
+    const data = useDataLoader(); 
+    const params = useParams();
+    const id = params.id;
+return (
+    <>
+        <BlogPost heading={data.heading} detail={data.detail} />
+    <>
+    )
+}
+
+export function BlogDetailLoader(id){
+    return getBlog(id)
+}
+```
+
+You can further improve on this by passing an `ID` from `params` that React Router exposes to the `loader` function, as shown below:
+
+```jsx
+export function BlogDetailLoader({params}){
+    return getBlog(params.id)
+}
+```
+
+You have now fully refactored your React component and cleaned all the unnecessary `useEffect()` Hooks and explicit `isLoading` state by utilizing the new React Router v6.4 `useDataLoader` API.
+
+This pattern eliminates usage of the loading state as the page only needs to load once there is fetched data from the API. You can think of it like those server-side rendered pages. This creates a great UX without the annoying spinners and loaders waiting for the data to load.
+
+But wait! What about the `isError` state? We still need to explicitly handle the error state in React components if a request has been successfully made or not.
+
+## New navigation APIs
+
+It's important to note that these new APIs are not backward compatible and require slight changes in how you define your routes at the root level.
+
+First off, React Router v6.4 recommends replacing the `BrowserRouter` with `RouterProvider`, which is just a self-closing component that takes `router` as a prop:
+
+```jsx
+import { RouterProvider, createBrowserRouter, } from 'react-router-dom';
+
+const router = createBrowserRouter()
+
+function App(){
+    return(
+        <RouterProvider router={router} />
+        {/* move all routes defined here, and pass it to `createBrowserRouter` */}
+    )
+}
+```
+
+The `createBrowserRouter()` can simply take an array of objects, and you can pass your routes and path like so:
+
+```jsx
+const router = createBrowserRouter([
+    { element={ <Welcome /> }, path="/" },
+    { element={ <BlogHome /> }, path="/blog" },
+    { element={ <About /> }, path="/about" },
+]);
+
+{/* pass this `router` variable to the `RouterProvider` API */}
+<RouterProvider router={router} />
+```
+
+However, you want to pass the complex routes as you defined for pages, including the dynamic ones (like the one with `ID`).
+
+In that case, you can pass another function, `createRoutesFromElements`, to `createBrowserRouter` API like this:
+
+```jsx
+const router = createBrowserRouter(createRoutesFromElements(
+    {/* pass all the Routes as it was defined before */}
+));
+
+{/* later, passing the `router` to the provider as it was */}
+<RouterProvider router={router} />
+```
+
+### Changes to the `Outlet` API
+
+While you have set up all your routes and migrated them to v6.4, keep in mind that one crucial thing changed in v6.4 — the `Outlet` API. Typically, you might have used some sort of shared root layout component that consumes all the children routes by using React's `children` prop.
+
+React Router v6.4 makes it easier to define your root layout using the `Outlet` API. You can wrap your entire routes under `Route` (instead of `Routes` prior to 6.4) and pass a `<SharedRootLayout />` component:
+
+```jsx
+const router = createBrowserRouter(createRoutesFromElements(
+    <Route path="/" element={<SharedRootLayout />}>
+        <Route path="/blog" element={<GenericBlogLayout />}>
+        <Router path=":id" element={<BlogDetail />}  
+            loader={BlogDetailLoader} />
+        </Route>
+    </Route>
+));
+```
+
+In the `SharedRootLayout` component, you can use the new outlet API in the code below:
+
+```jsx
+import { Outlet } from 'react-router-dom';
+
+function SharedRootLayout(){
+    return(
+        <>
+            <Navbar />
+            {/* replacing {children} with <Outlet />, this Outlet API has
+            now access to all the `children` Routes under the Root `<Route />` */}
+            <Outlet /> 
+        </>
+    )
+}
+```
+
+Therefore, these APIs `createBrowserRouter`, `createRoutesFromElements`, and `<Outlet />` totally change how we define routes in React Router v6.4. These changes make it React Router v6.4 more robust for doing complex routing.
+
+## Handling error states
+
+So far, you have refactored your loader state, routes, and more to the latest v6.4, but what about the error state? You still need some kind of check if a network request fails. In that case, the code below is no longer relevant as you have already moved away from the `useEffect` Hook and the manual handling of these state values:
+
+```jsx
+{isError && <p>Oops! an Error has Occured</p>}
+```
+
+Thankfully, React Router v6.4 provides error-handling APIs that make it a cakewalk to handle situations like these. You'll need to add an `errorElement` prop to the `Route` for handling error states automatically if something goes wrong:
+
+```jsx
+<Router path=":id" element={<BlogDetail />} loader={BlogDetailLoader} 
+    errorElement={<p>Oops! Something Went Wrong</p>}
+/>
+// or even pass an Error page component to the `errorElement` prop
+<Router path=":id" element={<BlogDetail />} loader={BlogDetailLoader} 
+    errorElement={<404Page />}
+/>
+```
+
+React Router v6.4 also provides flexibility to add `errorElement` at the root level `Route`, the same as that of the `<SharedRootLayout />` component.
+
+In the cases where you need to access the error message and render it on that UI page, you can use an error Hook, `useRouteError()` to tap into the actual reason or error message and log it to the screen:
+
+```jsx
+import { useRouteError } from 'react-router-dom';
+
+function BlogDetail(){
+    const error = useRouteError()
+    return(
+        {/* rest of the UI */}
+        <div>Error : {error.status}, Sorry {error.message}</div>
+    )
+}
+```
+
+As you can see, it has a pattern similar to the React Router prior to v6.4, but allows more flexibility and control.
+
+## Conclusion
+
+In this article, you saw React Router v6.4 proves to be one of the most important releases from the React Router team. It introduces a bunch of new APIs and ideas taken straight from Remix. While all these new practices may seem foreign at first, it undoubtedly improves a lot on developer experience and the end-user as well. React Router v6.4 has a lot more to offer than this. To learn more, check out their [official release documentation](https://reactrouter.com/en/main/start/overview).

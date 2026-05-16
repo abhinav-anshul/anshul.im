@@ -1,0 +1,442 @@
+---
+title: Schema validation in TypeScript with Zod
+date: 2024-07-16
+description: Learn how Zod bridges TypeScript's compile-time type checking gap by providing runtime schema validation for user inputs, forms, and API responses.
+---
+
+## The importance of schema validation
+
+Before we begin to understand how Zod works, it's important to know why we need schema validation in the first place.
+
+Schema validation assures that data is strictly similar to a set of patterns, structures, and data types you have provided. It helps identify quality issues earlier in your codebase and prevents errors that arise from incomplete or incorrect data types.
+
+Having a robust schema validation not only improves performance but also reduces errors when building large-scale, production-ready applications.
+
+## What is Zod and why do we need it?
+
+Runtime checks help with getting correctly validated data on the server side. In a case where the user is filling out some kind of form, TypeScript doesn't know if the user inputs are as good as you expect them to be on the server at runtime.
+
+Therefore, Zod helps with data integrity and prevents sending garbage values to the database. Also, it's better to log an error on the UI itself, such as in cases when a user types in numbers when you expect a string.
+
+[Zod](https://zod.dev/) is a tool that solves this exact problem. It fills this TypeScript blindspot and helps with type safety during runtime. Zod can help you build a flexible schema design and run it against a form or user input.
+
+## Why use Zod over other tools?
+
+There are already several tools that do similar things to Zod, such as [Yup](https://blog.logrocket.com/comparing-schema-validation-libraries-zod-vs-yup/), [Joi](https://github.com/hapijs/joi), and [io-ts](https://github.com/gcanti/io-ts). While these libraries are great for schema designing and doing runtime validation in general, Zod outshines in several factors:
+
+* **Flexibility**: Zod is very flexible and can chain several instances together, thereby preventing duplication of static types
+* **Dependency-free**: Zod operates without any external dependencies
+* **TypeScript-compatible**: While Zod is ideally suited for TypeScript, it's not dependent on it. You can use it independently in vanilla JavaScript projects to achieve basic type safety
+* **Immutability**: Zod prioritizes immutability; some of its methods, like `optional()` and `extend()`, return a new instance instead of mutating the same object altogether
+
+## Benefits of using Zod with TypeScript
+
+Zod works particularly well with TypeScript. In a typical TypeScript codebase, you ensure that all the static type safety will be handled by TypeScript at compile time. Even most third-party packages ship their code along with their `types`, like how React has its types under an npm package called `@types/react`.
+
+You might have encountered issues where you need to assign `undefined` or `unknown` to a type even after using its corresponding `@types` package — the sole reason being that you don't know beforehand what a user will enter or what the response structure is like. Having an additional runtime check using Zod fixes such issues with TypeScript.
+
+In addition, Zod offers three major advantages:
+
+* It provides a concise way to define data schemas with its various methods, which we'll explore in later sections of this article. In addition to enhancing type safety at runtime, Zod allows you to infer the type from the data schemas you define, preventing type duplication
+* In situations where TypeScript's error handling wouldn't be optimal, Zod can better display errors at runtime during user interactions with the UI
+* The Zod utility methods are chainable and have inspired similar chaining in TypeScript utilities, proving how well these two technologies gel together
+
+To install Zod as a regular dependency using npm, run the following command in your terminal:
+
+```bash
+npm install zod
+```
+
+## Primitives in Zod
+
+Let's discuss schema validation with a basic example of Zod primitives, which are fundamental data types that Zod uses to structure and validate data.
+
+The example below shows the creation of a data schema for a user bio, which is a string with specified minimum and maximum length boundaries:
+
+```ts
+import { z } from "zod";
+
+const UserBioSchema = z.string().min(25).max(120);
+let userBio = "I'm John Doe, a Web developer and a Tech writer.";
+
+try {
+  const parsedUserBio = UserBioSchema.parse(userBio);
+  console.log("Validation passed: ", parsedUserBio);
+} catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error("Validation failed: ", error.issues[0]);
+    } else {
+    console.error("Unexpected error: ", error);
+  }
+}
+```
+
+The `userBio` value in the above code will parse safely, as the length of `userBio` lies within the specified length boundaries. You can now show a positive message to the user or navigate them to the next input or a page, depending on your use case.
+
+But if we shorten or lengthen `userBio` below or beyond the specified boundaries, Zod will throw an exception.
+
+For safer and simpler exception handling, Zod also allows you to simply log the error using the `safeParse()` method.
+
+Note that the validation error messages can also be simplified and customized within the schema definition, as shown below:
+
+```ts
+const userBioSchema = z.string()
+      .min(25, "Bio must be at least 25 characters long")
+      .max(120, "Bio must not exceet 120 characters");
+```
+
+Besides `string`, Zod offers primitive methods such as `number`, `bigint`, `boolean`, and `date`. Additionally, there are some empty types as well, such as `undefined`, `null`, and `void`.
+
+Chaining these primitives together along with a few specific methods can lead to a very flexible schema design, some of which is demonstrated in the code below:
+
+```ts
+// Simple email validation
+const UserEmailSchema = z.string().email().trim();
+
+// A Terms & Conditions check at runtime
+const TacSchema = z.boolean();
+
+// Large high-precision values if they are being calculated at runtime
+const FactorialSchema = z.bigint();
+```
+
+## Objects in Zod
+
+Most user-facing forms require multiple data inputs and validation of varying data types. In such cases, it's better to use Zod objects instead of just individual variables to define data schema. This will allow you to create a schema for a set of properties and perform runtime checks on them:
+
+```ts
+import { z } from 'zod';
+
+const AddressSchema = z.object({
+  street: z.string(),
+  city: z.string(),
+  zipCode: z.string().length(5),
+});
+
+const validateAddress = (address: unknown) => {
+  try {
+    const parsedAddress = AddressSchema.parse(address);
+    console.log("Validation passed: ", parsedAddress);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      for (const issue of error.issues) {
+        console.error("Validation failed: ", issue.message);
+      }
+    } else {
+      console.error("Unexpected error: ", error);
+    }
+  }
+};
+```
+
+As shown above, using Zod objects, the data will be safely parsed if a user enters the fields that satisfy your schema definition. You may then send that data to the server or proceed with it as needed. Otherwise, an exception will be thrown, as observed in the previous section about primitives.
+
+Zod objects can be used to build more extensible schema validation for complex forms, which we will discuss as we move on to more advanced use cases.
+
+## Type inference in Zod
+
+In the last section, it wasn't possible to enforce schema validation at runtime using only TypeScript, so we had to provide `unknown` type to `address` in the `validateAddress` function.
+
+In such cases, we can extract types from data schemas using Zod's `infer` method, and then use those types instead of the `unknown` type:
+
+```ts
+// Previous code...
+
+type Address = z.infer<typeof AddressSchema>;
+
+const validateAddress = (address: Address) => {
+  const isValidAddress = AddressSchema.parse(address);
+  return isValidAddress;
+};
+```
+
+## Custom validations in Zod
+
+You might need to create your own custom validations in scenarios where you need to combine and compare different data together to create custom validations.
+
+Zod's refinement API allows you to pass a custom validator within the schema using the `refine` method, which takes in two arguments, the first being a function and the second one accepting different configuration options.
+
+In the example below, we are using `refine` to define a schema for positive numbers by checking if the number in question is greater than zero:
+
+```ts
+const PositiveNumberSchema = z.number().refine(n => n > 0, {
+  // Return the error message here
+  message: "Number must be positive"
+});
+```
+
+Note that with the `refine` method, the validation message will only be thrown when the function in the first argument returns false.
+
+In cases where the function returns a promise, `refine` can be asynchronous too. Here's an example showing dummy-loading an array of existing user emails from a database, and then returning whether or not the email in question is present in that array, indicating its uniqueness:
+
+```ts
+const UniqueEmailSchema = z.string().email().refine(
+  async (email) => {
+    /*
+     * Replace this simulation with a real 
+     * async operation (e.g., database check)
+     */
+    const existingUserEmails = await getExistingUserEmails();
+    return !existingUserEmails.includes(email);
+  },
+  {
+    message: "Email already in use!",
+  }
+);
+```
+
+## Handling complex schema objects
+
+Certain Zod methods can help you compose and manage complex scheme objects effectively. We'll cover this in three phases: nesting small schemas to form a big yet manageable schema object, deriving a new schema from an existing one, and then merging different schemas to create a new one.
+
+### Nesting schemas
+
+Let's say you have a Zod object that dictates the schema for a complex form containing multiple fields inside it. Each of the properties of this object is another Zod object in itself. In such cases, we should define all these properties as separate schemas and then later we can assign these as properties to the parent Zod object.
+
+Consider an example of a user's details, where we collect name, email, address, and age. Here's how we will structure the Zod object for this:
+
+```ts
+const UserSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  email: UserEmailSchema,
+  address: AddressSchema,
+  age: PositiveNumberSchema,
+});
+```
+
+As you may have noticed, we skipped defining the schema structure for the email, address, and age. This is because we defined them separately in the earlier examples, and we can use those schemas directly here without redefining things.
+
+### Extending schemas
+
+There can be cases where the schema object design is nearly the same for a couple of forms/fields, apart from a few extra or missing types. In those situations, you don't need to keep duplicating the same object schema over and over again. Instead, you can prevent duplication by using the `extend()` method.
+
+The `UserSchema` we defined in the last segment can be further extended without declaring its existing types, we only have to declare the new properties as shown below:
+
+```ts
+const CustomerSchema = UserSchema.extend({
+  loyaltyPoints: z.number().int().nonnegative(),
+});
+```
+
+The above approach can be a better way to have maintainable code and avoid data duplication. One thing to be mindful of while using `extend()` is that it mutates the schema objects, i.e., overwrites them.
+
+### Merging schemas
+
+Zod also provides a method to merge schemas, which should not be confused with extending schemas. The `merge()` method is quite useful for combining two schema objects, which defines the union of two different schemas rather than an extension of any of them:
+
+```ts
+const ProductSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  price: PositiveNumberSchema,
+});
+
+const InventoryItemSchema = z.object({
+  quantity: z.number().int().nonnegative(),
+  location: z.string(),
+});
+
+const StockItemSchema = ProductSchema.merge(InventoryItemSchema);
+```
+
+Now, if we validate the newly formed `StockItemSchema` using the appropriate data, it should follow the validation rules defined for each property of `ProductSchema` and `InventoryItemSchema`. Otherwise, it should throw an error mentioning the data that failed the validation test.
+
+Unlike `extend()`, Zod's `merge()` property doesn't mutate the fields.
+
+## Zod records
+
+A Zod record allows you to define schemas with specific types for both their keys and values. Let's take an example of a shopping cart that is expected to contain a list of products with the number of items ordered for each product.
+
+The schema for this cart should contain a unique identifier string to represent the product ID and a positive integer representing the number of items ordered for that product:
+
+```ts
+const CartSchema = z.record(
+  z.string().uuid(), 
+  z.number().int().positive()
+);
+```
+
+Using a Zod record as shown in the code snippet above, we can define the structure for our shopping cart to ensure data integrity for both the `CartSchema` object's key and value.
+
+## Preprocessing data in Zod
+
+The preprocess method in Zod can help schemas preprocess the input data before validation. In the example below, the schema uses some preprocessing to validate a phone number, where the input data is checked for its data type first.
+
+If it's of type `string`, the process tries to extract numbers out of it, otherwise, it returns the number value as is. Further, the returned digit is checked for the appropriate length to identify it as a phone number:
+
+```ts
+const PhoneNumberSchema = z.preprocess(
+  (val) => typeof val === 'string' ? val.replace(/\D/g, '') : val,
+  z.string().length(10)
+);
+```
+
+## Dynamic form validation with Zod
+
+With all the knowledge we've gathered about Zod, let's mimic a login form functionality that reflects the validation provided by Zod on the frontend. Using React to demonstrate this, as it's a widely used framework.
+
+### Setting up Zod schema
+
+After setting up a React app, install Zod as we discussed at the start. Our login form is supposed to carry mainly three inputs: username, password, and a gender select box. It should also have a submit button by the end.
+
+Keeping that in mind, let's create a `LoginForm` component. We will define user schema using Zod objects and primitives, and use the refinement API to manage a custom validation for password confirmation:
+
+```ts
+import { z } from "zod";
+
+const genderOptions = ["male", "female", "other"]; 
+type Gender = typeof genderOptions[number];
+
+const userFormSchema = z
+  .object({
+    username: z.string().min(3, "Username must be at least 3 characters"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    gender: z.enum(genderOptions, {
+      errorMap: () => ({ message: "Please select a gender" })
+    })
+  });
+```
+
+### Parsing the data using Zod schema
+
+After declaring some state variables to manage form data and errors, let's define a function to parse and validate the form data with the help of Zod's `parse` method:
+
+```ts
+import { useState } from "react";
+import { z } from "zod";
+
+// Previous code ...
+
+type FormData = z.infer<typeof userFormSchema>;
+type FormErrors = Partial<Record<keyof FormData, string[]>>;
+
+function LoginForm() {
+  const [formData, setFormData] = useState<FormData>({
+    username: "",
+    password: "",
+    gender: "" as Gender
+  });
+
+  const [errors, setErrors] = useState<FormErrors>({});
+
+  const validateForm = (data: FormData): FormErrors => {
+    try {
+      userFormSchema.parse(data);
+      return {};
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return error.flatten().fieldErrors;
+      }
+      return {};
+    }
+  };
+
+  // TODO: Submission and Input change handlers
+}
+```
+
+### Defining event handlers
+
+Next, let's define event handlers for form submission and field changes. These handlers will use the validation function we defined in the last step, update the state variables accordingly, and log the data in the console if no errors are observed:
+
+```ts
+import { useState, ChangeEvent, FormEvent } from "react";
+import { z } from "zod";
+
+// Previous code ...
+
+function LoginForm() {
+  // Previous data ...
+
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const newErrors = validateForm(formData);
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length === 0) {
+      // Form is valid, proceed with submission
+      console.log("Form submitted:", formData);
+    }
+  };
+
+  const handleChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    const updatedFormData = { ...formData, [name]: value };
+    setFormData(updatedFormData);
+    // Validate form on each change
+    const newErrors = validateForm(updatedFormData);
+    setErrors(newErrors);
+  };
+
+  // TODO: Construct a form
+}
+```
+
+### Returning the form JSX
+
+Finally, let's write some JSX to construct our form and provide its input elements with appropriate handlers and values. We can easily add an input and password field and provide them with the change handler and appropriate values. To populate the select box, we can loop through the `genderOptions` variable and create options:
+
+```jsx
+import { useState, ChangeEvent, FormEvent } from "react";
+import { z } from "zod";
+
+// Previous code ...
+
+function LoginForm() {
+  // Previous code ...
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div>
+        <input
+          type="text"
+          name="username"
+          value={formData.username}
+          onChange={handleChange}
+          placeholder="Username"
+        />
+        {errors.username && <span>{errors.username[0]}</span>}
+      </div>
+      <div className="form-row">
+        <select
+          name="gender"
+          className="form-field"
+          value={formData.gender}
+          onChange={handleChange}
+        >
+          <option value="">Select Gender</option>
+          {genderOptions.map((gender) => (
+            <option key={gender} value={gender}>
+              {gender}
+            </option>
+          ))}
+        </select>
+        {errors.gender && errors.gender.length > 0 && (
+          <div className="form-msg">{errors.gender[0]}</div>
+        )}
+      </div>
+      <div>
+        <button type="submit">Submit</button>
+      </div>
+    </form>
+  );
+}
+
+export default LoginForm;
+```
+
+### The final demo
+
+Upon importing and utilizing the `LoginForm` component in the main `App` component, you can interact with the form to see the dynamic Zod validations in action. All the code (including the TypeScript examples and the React app) discussed in this tutorial is available in [this GitHub repo](https://github.com/c99rahul/zod-react-ts).
+
+## Conclusion
+
+There are some more nitty-gritty API features that Zod provides out of the box. This article covered almost every basic entity required to build functional schema validations with Zod and TypeScript. The primitives and other Zod properties can be powerfully chained together to build an effective and flexible schema design for your application.
+
+Having a runtime validation is always a good idea because it makes your code more readable and sanitizes users' input before redirecting them to the server.
+
+Zod emphasizes the DRY principle and makes sure that schema defined in one place can be tokenized and used for other types as well, either by inferring those types or extending them. This makes Zod stand out among similar libraries.
+
+Pairing Zod with a powerful compile type check system like TypeScript can enhance the reliability of current JAMstack applications.

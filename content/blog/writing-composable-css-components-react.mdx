@@ -1,0 +1,277 @@
+---
+title: Writing composable CSS components for React
+date: 2023-08-01
+description: Learn how to create reusable, composable CSS components in React using CSS Components, a lightweight utility that provides a developer experience similar to styled-components and Stitches.
+---
+
+## Getting started with CSS Components
+
+CSS Components is a tiny (2.3Kb) modern utility for composing CSS classes to React components. It works on all modern browsers up to at least the last two versions and is React-specific, striving to excel at composing styles in React applications.
+
+While not yet considered production-ready, CSS Components is straightforward to use. You define a configuration using its `styled` API—similar to Stitches—and then export your variants:
+
+```jsx
+import { styled } from "@phntms/css-components";
+const Button = styled("button", {
+  css: "rootStyles",
+  variants : {
+    {/* add your variants here */}
+});
+```
+
+You can now export this `Button` component and use it anywhere in your project by passing the various props you defined in your configuration under `variants`.
+
+## Adding CSS Components to your React project
+
+CSS Components was built with modern server-side rendering in mind. It supports mixing and matching with any component library of your choice, or even CSS libraries such as CSS modules, SASS, and others.
+
+To add CSS Components to your React project, first initialize a simple React App using a framework of your choice. This guide uses Vite for its simplicity.
+
+Create a new Vite project by running:
+
+```bash
+npm create vite@latest
+```
+
+Select React as your choice of framework when prompted by the CLI.
+
+Now install CSS Components as a dependency:
+
+```bash
+npm install @phntms/css-components
+```
+
+This will add `css-components` to your project. Similar to Stitches, you can utilize the `styled` API to create utility classes throughout your project.
+
+## Building a reusable `Button` utility
+
+To create a `Button` component, create a folder named `Button` under the `src` directory. Inside this folder, create two files:
+
+```
+> src
+  > Button
+    - Button.jsx
+    - button.module.css
+```
+
+Open your `Button.jsx` file and import `styled` from CSS Components. To build `Button` components as a utility, use the `variants` API exposed via `styled`:
+
+```jsx
+import { styled } from "@phntms/css-components"
+const Button = styled("button", {
+  variants: {
+    primary: {},
+    secondary: {},
+    destructive: {},
+    ghost: {},
+    outline: {}
+  }
+})
+```
+
+The `Button` component has 5 variants—`primary`, `secondary`, `destructive`, `ghost`, and `outline`—following common design system naming conventions.
+
+To use these variants, you can simply pass a variant prop like:
+
+```jsx
+<Button primary>Secondary</Button>
+{/* Or */}
+<Button primary={true}>Secondary</Button>
+```
+
+Define styles for each variant in your `button.module.css` file. For example, with the `primary` variant:
+
+```css
+.primary {
+  background-color: white;
+  color: black;
+  padding: 0.5rem 1rem 0.5rem 1rem;
+  border-radius: 0.2rem;
+  cursor: pointer;
+  border: none;
+  color: white;
+}
+.primary:hover {
+  opacity: 0.95;
+}
+```
+
+Now invoke this variant by passing `true` to the `primary` prop:
+
+```jsx
+import { styled } from "@phntms/css-components"
+import buttonStyles from "./button.module.css"
+const Button = styled("button", {
+  variants: {
+    primary: {
+      true: buttonStyles.primary,
+    },
+    secondary: {},
+    destructive: {},
+    ghost: {},
+    outline: {}
+  }
+})
+```
+
+Continue adding CSS styles for the remaining variants and add references back in the `Button` variants API:
+
+```jsx
+import { styled } from "@phntms/css-components"
+import buttonStyles from "./button.module.css"
+const Button = styled("button", {
+  variants: {
+    primary: {
+      true: buttonStyles.primary,
+    },
+    secondary: {
+      true: buttonStyles.secondary,
+    },
+    destructive: {
+      true: buttonStyles.destructive,
+    },
+    ghost: {
+      true: buttonStyles.ghost,
+    },
+    outline: {
+      true: buttonStyles.outline
+    }
+  }
+})
+```
+
+## Extracting repetitive properties to optimize your styles
+
+As you add styles to the `button.module.css` stylesheet, you may notice repetitive properties among all variants. Extract these into a new utility class called `.btn`:
+
+```css
+.btn {
+  padding: 0.5rem 1rem 0.5rem 1rem;
+  border-radius: 0.2rem;
+  cursor: pointer;
+  border: none;
+  color: white;
+}
+
+/* primary variant */
+.primary {
+  background-color: white;
+  color: black;
+}
+.primary:hover {
+  opacity: 0.95;
+}
+
+/* secondary variant */
+.secondary {
+  background-color: #0f172a;
+}
+.secondary:hover {
+  opacity: 0.95;
+}
+```
+
+Now add `.btn` as the common style utility in the `styled` API under the `css` key:
+
+```jsx
+const Button = styled("button", {
+  css: buttonStyles.btn,
+  variants: {
+    primary: {
+      true: buttonStyles.primary,
+    },
+    {/* ...rest of the variants */}
+  },
+})
+```
+
+The `css` key also accepts an array of styles, so you can import styles from root CSS files and include them in the array:
+
+```jsx
+import { styled } from "@phntms/css-components"
+import rootStyles from "../style.module.css"
+import buttonStyles from "./button.module.css"
+const Button = styled("button", {
+  css: [rootStyles.root, buttonStyles.btn],
+  variants: {
+    {/* ...rest of the variants */}
+  },
+})
+```
+
+## Using a CSS component as a custom React Hook
+
+To make your components easier to use with improved developer experience and modularity, convert this component into a custom React Hook. Simply wrap the entire component into a function called `useButton` and return the `Button` component:
+
+```jsx
+import { styled } from "@phntms/css-components"
+import rootStyles from "../style.module.css"
+import buttonStyles from "./button.module.css"
+function useButton() {
+  const Button = styled("button", {
+    css: [rootStyles.root, buttonStyles.btn],
+    variants: {
+      {/* variants here */}
+    },
+  })
+  return Button
+}
+export { useButton }
+```
+
+You can then utilize this Hook like so:
+
+```jsx
+import { useButton } from "./Button/Button"
+function App() {
+  const Button = useButton()
+  return (
+    <>
+      <main>
+        <Button primary>Primary</Button>
+      </main>
+    </>
+  )
+}
+export default App
+```
+
+Custom Hooks complement the composable behavior of CSS Components quite well. These custom Hooks follow the same rules as React Hooks and must be defined only at the top level of the file.
+
+Converting CSS Components to Hooks promotes reusability across the application and improves codebase maintainability, especially when working on a large-scale application.
+
+## Composing components with CSS Components
+
+CSS Components allows you to compose two components via the `styled` API. This is useful when you already have a utility component defined and want to reuse those styles.
+
+In the following code, the `SubscriptionButton` will inherit styles from the `BaseButton` component. If there are styling conflicts, the `SubscriptionButton` will safely override those properties:
+
+```jsx
+const BaseButton = styled("button", {
+  css: buttonStyles.btn,
+});
+const SubscriptionButton = styled(BaseButton, {
+  css: subscriptionStyles.btn,
+});
+```
+
+This newly composed `SubscriptionButton` component can be turned into a Hook as well and used similarly to the `BaseButton`, inheriting its properties:
+
+```jsx
+<BaseButton primary>Base button</BaseButton>
+<SubscriptionButton ghost>Base button</SubscriptionButton>
+```
+
+## Comparing CSS Components with other popular libraries
+
+CSS Components outperforms other popular CSS-in-JS solutions in several benchmark comparisons. It outperforms Emotion, Stitches, and styled-components in terms of injecting initial styles as well as updating CSS properties.
+
+CSS Components also performs well when handling a larger number of DOM nodes in a tree, both in deeply nested trees and in wide sibling node configurations.
+
+## Conclusion
+
+CSS Components doesn't aim to replace popular component libraries. Instead, it's perfect to use alongside them.
+
+You can use CSS Components to generate custom utility-based components in seconds. CSS Components also embraces a modular pattern of writing code that proves quite maintainable and scalable. These features make it a strong CSS-in-JS solution for React developers.
+
+You can find the source code for the examples in this [GitHub repository](https://github.com/abhinav-anshul/logrocket-css-components).

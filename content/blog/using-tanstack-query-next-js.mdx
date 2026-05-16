@@ -1,0 +1,374 @@
+---
+title: Using TanStack Query with Next.js
+date: 2023-10-24
+description: Learn how to use TanStack Query (formerly React Query) for state management and data handling in Next.js 12 and Next.js 13 applications with practical examples.
+---
+
+## What is TanStack Query?
+
+TanStack Query — previously known as React Query — is a powerful state management solution that provides easy-to-use surface-level APIs for your app.
+
+Handling state updates in a large-scale application can be quite cumbersome, especially when you want to scale your app over time. TanStack Query not only helps with your getter and setter state updates, but also:
+
+- Uses cached values instead of refetching or recalculating values
+- Performs background refetch when the data is marked as stale
+- Updates stale state values off the screen
+- Optimizes performance during pagination, filtering, etc.
+- Allows you to set a certain time interval for your data to be refetched
+- Performs automatic garbage collection for the server state
+
+These features make data handling much easier with TanStack Query, enhancing performance as well as both user and developer experience.
+
+## Using TanStack Query with Next.js 12 or earlier
+
+We'll discuss how to use TanStack Query in Next.js 13, which uses Server Components by default. But as a refresher, it's important to understand how TanStack Query helps with data handling in pages rendered on the client side, as is the case with Next.js 12 or earlier.
+
+To understand this, we'll set up a demo project that illustrates how data handling works with TanStack Query in Next.js. Let's begin by quickly spinning up a new Next.js project:
+
+```bash
+npx create-next-app@latest
+```
+
+The Next.js CLI will ask you to choose between a `pages`-based or an `app`-based directory. For this section, opt for a `pages`-based directory, which will allow your pages to use client-side rendering by default.
+
+Once your app finishes installing, you will have a `pages`-based Next.js boilerplate app. Now you can install TanStack Query like so:
+
+```bash
+npm i @tanstack/react-query
+```
+
+### Setting up TanStack Query at the root file
+
+After installing TanStack Query, go to the entry point of your app — in this case, the `_app.tsx` file. In that root file, we'll add the basic setup required to initialize TanStack Query.
+
+Here, `QueryClientProvider` will wrap up your entire app. This `QueryClientProvider` takes in a client prop provided by TanStack Query:
+
+```typescript
+import "@/styles/globals.css"
+import type { AppProps } from "next/app"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
+
+const queryClient = new QueryClient()
+
+export default function App({ Component, pageProps }: AppProps) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Component {...pageProps} />
+    </QueryClientProvider>
+  )
+}
+```
+
+You may notice that we also imported `ReactQueryDevtools`, which is an optional set of developer tools provided by the TanStack team. Simply import this at the top of your root file and add it between providers to gain more in-depth insights about your data across the app.
+
+These developer tools help visualize how you are fetching data and how TanStack Query is handling that data in terms of fetching, caching, etc across your application. This tool set also provides a **Data Explorer** tab where you can check the API response that is being rendered.
+
+Now, navigate to the `index.tsx` file and write a simple `fetch` function that will list Pokémon names from the Pokémon API:
+
+```typescript
+const fetchPokemon = async (pokemonNumber: any) => {
+    const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonNumber}`).then((res) =>
+      res.json()
+    )
+    return res // Return the Pokémon data
+  }
+```
+
+This function returns a JSON-formatted data object containing Pokémon names. You can subscribe to this function to benefit from various states, caching, data manipulation, and more provided by the `useQuery` Hook, which demonstrates how TanStack Query provides a better way to handle data.
+
+### Making sense of the `useQuery` Hook
+
+As mentioned above, the `useQuery` Hook accepts a unique key name and an anonymous arrow function to the actual query that we wrote earlier. It also destructures the top-level `isLoading`, `error`, and `data` APIs, which indicate various states while fetching a given query:
+
+```typescript
+const { isLoading, error, data: pokemon } = useQuery([`fetch-all-pokemon`], () => fetchPokemon())
+```
+
+You now have a function that fetches Pokémon names from the Pokémon API. This function has been passed on to the `useQuery` Hook provided by TanStack Query. You can now see how various states are being used in the JSX while the Pokémon list is being rendered:
+
+```typescript
+import Head from "next/head"
+import { Inter } from "next/font/google"
+import { useQuery } from "@tanstack/react-query"
+import { Fragment } from "react"
+
+const inter = Inter({
+  weight: "400",
+  subsets: ["latin"],
+})
+
+export default function Home() {
+  const fetchPokemon = async (pokemonNumber: any) => {
+    const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonNumber}`).then((res) =>
+      res.json()
+    )
+    return res // Return the Pokémon data
+  }
+
+  const fetchPokemonArray = async () => {
+    const pokemonArray = []
+    for (let i = 1; i <= 30; i++) {
+      try {
+        const pokemonData = await fetchPokemon(i)
+        pokemonArray.push(pokemonData)
+      } catch (error) {
+        console.error(error)
+      }
+    }
+    return pokemonArray
+  }
+
+  const {
+    isLoading,
+    error,
+    data: pokemon,
+  } = useQuery([`fetch-top-20-pokemon`], () => fetchPokemonArray())
+
+  console.log({ pokemon })
+
+  return (
+    <>
+      <Head>
+        <title>Create Next App</title>
+        <meta name="description" content="Generated by create next app" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+      <main className={inter.className}>
+        <h1 style={{ textAlign: "center", margin: "4rem" }}>Pokedex</h1>
+        {isLoading && <h2>Loading...</h2>}
+        {error && <h2>Oops! An error has occured!</h2>}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr",
+            alignItems: "center",
+            justifyContent: "center",
+            justifySelf: "center",
+          }}
+        >
+          {pokemon?.map((itm, index) => (
+            <div
+              style={{ display: "flex", alignItems: "center", flexDirection: "column" }}
+              key={index}
+            >
+              <img alt={itm?.name} src={itm?.sprites?.front_default} />
+              <div>{itm?.name}</div>
+            </div>
+          ))}
+        </div>
+      </main>
+    </>
+  )
+}
+```
+
+We now have a simple list of Pokémon that we fetched using the `useQuery` Hook. It utilizes the various fetching states and re-renders the UI accordingly for `loading` or `error` states.
+
+You can find the [complete code in this GitHub repo](https://github.com/abhinav-anshul/logrocket-tanstack-query-basic).
+
+## Using TanStack Query with Next.js 13
+
+When React was introduced, it was purely unopinionated. React Server Components changed that. It now offers patterns and ideas regarding how you should fetch data, emphasizing server-rendered components more.
+
+Now, some may think that fetching data on the server side has made client-side libraries such as TanStack Query pretty much redundant. After all, these libraries fetch data on the client side that is now being taken care of by React itself by moving data fetching to the server side only.
+
+Even the core maintainer of TanStack Query expressed concerns about how Server Components and React Suspense would work with React Query.
+
+In a nutshell, TanStack Query is not "just" a data-fetching library. It also adeptly handles caching, mutating requests, automatic background data refresh, explicit handling of query states, and much more.
+
+For TanStack Query to work with the new Server Components architecture, the TanStack team has introduced an experimental API called `ReactQueryStreamedHydration`. This neat little package has solved a lot of issues experienced previously while trying to make TanStack Query work with Next.js 13.
+
+`ReactQueryStreamedHydration` allows you to fetch data on the server itself during the initial request. In other words, the API call from the `useQuery` Hook will be made on the server.
+
+Once the data is available, it gets passed to the `QueryClient`. Then, as the `QueryClient` receives the data, it hydrates your UI.
+
+To demonstrate how easy it is to integrate TanStack Query with this new experimental package, let's build a simple app that displays a list of robots using the RoboHash API.
+
+To get started, create a new Next.js 13 project and install the following packages:
+
+```bash
+npm i @tanstack/react-query
+npm i @tanstack/react-query-next-experimental
+npm i @tanstack/react-query-devtools
+```
+
+### Building a `Provider` component
+
+After installing, wrap your `children` prop with the `ReactQueryStreamedHydration` API. Create a separate folder called `utils` and create a file called `Provider.tsx` inside.
+
+In this `Provider.tsx` file, you can wrap the `children` prop with `ReactQueryStreamedHydration`. Make sure to add `ReactQueryDevtools` as we did earlier:
+
+```typescript
+"use client"
+import React, { useState } from "react"
+import { ReactQueryStreamedHydration } from "@tanstack/react-query-next-experimental"
+import { QueryClientProvider, QueryClient } from "@tanstack/react-query"
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
+
+function Provider({ children }: any) {
+  const [client] = useState(new QueryClient())
+
+  return (
+    <>
+      <QueryClientProvider client={client}>
+        <ReactQueryStreamedHydration>
+            {children}
+        </ReactQueryStreamedHydration>
+        <ReactQueryDevtools initialIsOpen={false} />
+      </QueryClientProvider>
+    </>
+  )
+}
+
+export { Provider }
+```
+
+Like last time, the `QueryClientProvider` takes in a `QueryClient`. However, this time it will hydrate your pages with the data already fetched in the server.
+
+Once the `Provider` component is done, you can now use it in the Next.js 13 `layout.tsx` entry file, wrapping the app content as `children`:
+
+```typescript
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body className={inter.className}>
+        <Provider>{children}</Provider>
+      </body>
+    </html>
+  )
+}
+```
+
+### Creating the user display page
+
+You can now use the new App Router and TanStack Query by building out a page that will display the list of robots. In this example, the `app` structure is as follows:
+
+```
+- app
+    - streaminghydration
+        - counter.tsx // for client side interactions
+        - page.tsx // the main page that will route to /streaminghydration
+        - Robots.tsx // component for fetching robots and listing them
+```
+
+Let's begin by writing actual logic for fetching using the `useQuery` Hook in the `Robots.tsx` file.
+
+`useQuery` takes in a function as a parameter. This function is the `getUsers` function that is defined above the `JSX`. Along with the function, `useQuery` accepts a unique key, a `staleTime` option, and `suspense` property as well.
+
+This `staleTime` option specifies the time after which the fetched data will go "stale" and TanStack Query needs to fetch it again. This is customizable and usually `0` seconds by default, meaning it will go stale immediately after the first fetch call. In our case, we'll set it to `5 * 1000`.
+
+Let's see the code:
+
+```typescript
+"use client"
+import { useQuery } from "@tanstack/react-query"
+import React, { Fragment, useEffect } from "react"
+
+async function getUsers() {
+  return (await fetch("https://jsonplaceholder.typicode.com/users").then((res) =>
+    res.json()
+  )) as any[]
+}
+
+export default function Robots() {
+  const [count, setCount] = React.useState(0)
+  const { data } = useQuery<any[]>({
+    queryKey: ["stream-hydrate-users"],
+    queryFn: () => getUsers(),
+    suspense: true,
+    staleTime: 5 * 1000,
+  })
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setCount((prev) => prev + 1)
+    }, 100)
+    return () => {
+      clearInterval(intervalId)
+    }
+  }, [])
+
+  return (
+    <Fragment>
+      {
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr 1fr",
+            gap: 20,
+          }}
+        >
+          {data?.map((user) => (
+            <div key={user.id} style={{ border: "1px solid #ccc", textAlign: "center" }}>
+              <img
+                src={`https://robohash.org/${user.id}?set=set2&size=180x180`}
+                alt={user.name}
+                style={{ width: 180, height: 180 }}
+              />
+              <h3>{user.name}</h3>
+            </div>
+          ))}
+        </div>
+      }
+    </Fragment>
+  )
+}
+```
+
+If you look closely, we're using a `useEffect` Hook to demonstrate that you can have client-side updates while passing data from the server, or `QueryClient`. Using this instance of the `useEffect` Hook, we're just automatically incrementing the `count` state at a fixed interval.
+
+### Adding a client-side `Counter` component to the final project
+
+Optionally, you can build purely client components using the `useState` Hook. TanStack Query will make sure to run everything smoothly. In our demo project, the `Counter` component is a basic counter state that you can increment, decrement, or reset from the client side:
+
+```typescript
+export default function Counter() {
+  const [count, setCount] = useState(0)
+
+  return (
+    <div style={{ marginBottom: "5rem", textAlign: "center" }}>
+      <h4 style={{ marginBottom: 20 }}>{count}</h4>
+      <button onClick={() => setCount((prev) => prev + 1)}>increment</button>
+      <button onClick={() => setCount((prev) => prev - 1)} style={{ marginInline: 16 }}>
+        decrement
+      </button>
+      <button onClick={() => setCount(0)}>reset</button>
+    </div>
+  )
+}
+```
+
+Combining everything we've done so far, you now have a `page.tsx` that will route to `/streaminghydration` as its URL. Here, you can make use of `<Suspense>` boundaries and add your necessary loaders or skeletons:
+
+```typescript
+import Counter from "./counter"
+import Robots from "./Robots"
+import { Suspense } from "react"
+
+export default async function Page() {
+  return (
+    <main style={{ padding: 20 }}>
+      <Counter />
+      <Suspense fallback={<p style={{ textAlign: "center" }}>Loading...</p>}>
+        <Robots />
+      </Suspense>
+    </main>
+  )
+}
+```
+
+This concludes our demonstration of using Tanstack Query's `ReactQueryStreamedHydration` API with Next.js 13.
+
+You can find the [complete code on GitHub](https://github.com/abhinav-anshul/logrocket-tanstack-nextjs13).
+
+## Conclusion
+
+In this post, we saw how TanStack Query pairs up quite well with the Next.js stack. With minimal setup to the repo, you get a powerful state management solution that takes care of caching, routing, data validation after a certain period of time, and much more.
+
+Despite the recent shakeups in Next.js 13, the TanStack team quickly came up with a solution to fetch data on the server and later hydrate the client side. `ReactQueryStreamedHydration` proved to be an easy-to-integrate package that solved the issues of handling data while still using the latest Server Components.
+
+If you are starting a project now with Next.js 13, Server Components provides a highly optimized way of fetching data. You might not need TanStack Query for smaller use cases.
+
+However, as you have seen, TanStack Query is much more than a fetching library. It has a ton of features baked into it, including the set of `ReactQueryDevtools` that makes managing data across large-scale apps a breeze to deal with.

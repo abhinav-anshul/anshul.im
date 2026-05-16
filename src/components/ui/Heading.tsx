@@ -1,6 +1,6 @@
 function Heading({text}: {text: string}) {
     return (
-        <h2 className="text-gray-800 text-lg font-medium">{text}</h2>
+        <h2 className="text-gray-800 dark:text-neutral-200 text-lg font-medium">{text}</h2>
     )
 }
 

@@ -1,0 +1,196 @@
+---
+title: Understanding when and how to prioritize React UI updates
+date: 2023-04-17
+description: React v18 introduced useTransition() and useDeferredValue() Hooks to help prioritize UI updates on the client side, ensuring heavy computations don't block user interactions like typing.
+---
+
+## Why prioritize UI updates at all?
+
+Prioritizing UI updates is one way to optimize performance in a React application. While working with complex state updates, you will likely encounter situations where a certain UI update is slow due to intensive computations performed on the client side.
+
+For example, imagine that you have a list of 10,000 products rendered on the screen and you want to implement a search functionality based on the product name.
+
+Ideally, you should never render 10,000 items at once, but either use some kind of pagination or lazy loading technique. But for sake of this example, suppose all the items are rendered on the screen at once.
+
+Now, when you implement a search functionality and bind it to the `onChange` event, the text you enter in the input box itself would be quite laggy. This is because each keystroke is responsible for updating and rendering a large number of products in the list.
+
+This is a perfect use case for prioritizing keystroke UI updates over the rendering of the lists below. You want to ensure that there is no delay in typing in the textbox, but a delay of a few microseconds in rendering the list is tolerable in terms of the user's experience.
+
+## How does the `useTransition()` Hook help?
+
+React v18 solves the problem in our example above by providing a unique Hook called `useTransition`. You can simply use this Hook to wrap the event responsible for the textbox UI keystroke updates.
+
+The `useTransition` Hook returns an array with two variables:
+
+```javascript
+const [ isPending, startTransition ] = useTransition()
+```
+
+The first variable is a boolean that tells you if a non-blocking UI update is pending.
+
+The second variable is a function that can wrap your state update for "transition" — meaning that particular transition is of higher priority and will be executed as a non-blocking UI state update.
+
+In the example described above, you have an input box and an `onChange` event handler attached to it:
+
+```javascript
+function App(){
+  const [search, setSearch] = useState("")
+
+  function handleFilterChange(e) {
+    setSearch(e.target.value);
+  }
+
+  return(
+   <input type="search" onChange={handleFilterChange} /> 
+  )
+}
+```
+
+You can improve the sluggish input by using the `useTransition` Hook like so:
+
+```javascript
+function handleFilterChange(e) {
+    startTransition(() => {
+      setSearch(e.target.value);
+    });
+  }
+```
+
+Now, the `setSearch(e.target.value)` UI update will be treated as a transition.
+
+You can always use the first variable that the `useTransition` Hook provides to check if the transition is pending. The `isPending` variable can be later used to show a pending transition in your main `App` component.
+
+Here is the complete code implementing the `useTransition` Hook to improve the user experience while typing in the input box:
+
+```jsx
+import { useState, useTransition } from "react";
+import List from "./List";
+
+/* 
+create a dummy list of 10000 items, simulating a large number of products.
+*/
+
+function dummyList() {
+  const items = [];
+  for (let i = 0; i < 10000; i++) {
+    items.push(`Item ${i + 1}`);
+  }
+  return items;
+}
+const list = dummyList();
+
+function filterItems(search) {
+  if (!search) {
+    return list;
+  }
+  return list.filter((product) => product.includes(filterTerm));
+}
+
+/*
+create a `List` functional component that would later be used to map over a list of items under the `App` component.
+*/
+function List({ items }) {
+  return (
+    <div>
+      {items.map((item, index) => (
+      <Fragment key={index}>
+    <div>{item}</div>
+      </Fragment>
+      ))}
+    </div>
+  );
+}
+
+function App() {
+  const [isPending, startTransition] = useTransition();
+  const [search, setSearch] = useState("");
+
+  const searchedItems = filterItems(search);
+
+  function handleFilterChange(e) {
+    startTransition(() => {
+     {/* wrapping setSearch in startTransition */}
+        setSearch(e.target.value);
+    });
+    {/* setSearch(event.target.value); -> This is now redundant */}
+  }
+  return (
+    <div>
+      <input type="search" onChange={handleFilterChange} />
+      {/* `isPending` boolean can be used to track your transition state */}
+       {isPending ? <div>Loading...</div> : null}
+      {/* render a list of items and pass a prop with the filtered items */}
+      <List items={searchedItems} />
+    </div>
+  );
+}
+```
+
+## Considerations when using `useTransition()`
+
+One important thing to note here is that the `input` component is an uncontrolled component. This works in this example, since you don't want the state value to be in sync with the input value; instead, you want `setSearch(e.target.value)` to be handled as the higher priority.
+
+That being said, `useTransition` cannot work with a controlled input component, as both the typed-in value and the filter result would be in sync. This would result in the same initial problem — i.e., the sluggish behavior due to a large number of list items.
+
+React itself considers using the `useTransition` Hook in a controlled component as an anti-pattern. The code below is an anti-pattern and should not be used at all:
+
+```jsx
+function App(){
+
+const [search, setSearch] = useState("")
+
+function handleFilterChange(e) {
+    startTransition(() => {
+        setSearch(e.target.value);
+    });
+  }
+
+return(
+  <div>
+    {/* ❌Never do this with controlled component */}
+    <input type="search" value={search} onChange={handleFilterChange} />
+  </div>
+)
+}
+```
+
+Therefore, while the `useTransition` Hook can be great for handling state updates, it should be a last resort or a trick that you should only use when you have slow UI updates. This is especially true when dealing with older devices with slow CPUs.
+
+Most of the UI updates can be handled with React itself if done correctly. There is also another Hook called `useDeferredValue` that was introduced in React v18, which solves a very similar set of problems and can be used if you do not have control over state calls.
+
+## Deferring state updates with the `useDeferredValue()` Hook
+
+The `useDeferredValue` Hook, as the name suggests, helps you in "deferring" a state update.
+
+In the example above, you can also use this Hook if you do not have control over how the list state is being called, but can only manipulate the `List` component. In that case, you can pass the `items` prop to the `useDeferredValue` Hook and map over it instead of directly on `items`, like so:
+
+```jsx
+function List({ items }) {
+
+const deferredItems = useDeferredValue(items)
+
+  return (
+    <div>
+      {deferredItems.map((item, index) => (
+      <Fragment key={index}>
+    <div>{item}</div>
+      </Fragment>
+      ))}
+    </div>
+  );
+}
+```
+
+This would ensure that the input updates are quick and snappy while the list takes a while to update. You might have seen this behavior if you have used debouncing in search functionality. This Hook behaves exactly like that, but by deferring list UI updates on each keystroke.
+
+If in general, you have control over state calls, it is a better idea to use the `useTransition` Hook. Otherwise, you can always delay a UI update from the `List` component itself, somewhat like the debounce method.
+
+You should never mix and match the `useDeferredValue` and `useTransition` Hooks together, as they both are solving the same problem.
+
+However, you might likely want to use `useDeferredValue` along with debouncing or throttling, which can further improve the user experience and save some network calls while the user is interacting with the input box.
+
+## Conclusion
+
+The `useTransition` and `useDeferredValue` Hooks can be very useful in solving those slow and laggy UI updates that are caused by either a slow CPU performance or due to external factors like API itself.
+
+Always keep in mind that prioritizing UI updates should be a last resort. You should always first try to design a performant UI with good code practices and React patterns.

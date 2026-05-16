@@ -1,0 +1,184 @@
+---
+title: "Using strict mode in React 18: A guide to its new behaviors"
+date: 2022-08-23
+description: React v18's strict mode enforces stricter development checks and warnings to catch bugs early. Learn about its new behaviors including double-invocation of functions, unmounting/remounting architecture, and deprecated API warnings.
+---
+
+## Introduction to React's strict mode
+
+Strict mode can be thought of as `"use strict"` notation. This was introduced some time ago in ECMAScript v5 and ensures a stricter version of JavaScript.
+
+```javascript
+"use strict";
+x = 3.1415;
+```
+
+The example above would throw an error since `x` is not defined. Notice how the addition of `"use strict"` to the top of the file ensures this. You might not even get this error in cases where `"use strict"` is not added, as JavaScript tends to perform weird behavior if not subjected to Strict Type definitions (like `"use strict"`, TypeScript, [flow](https://flow.org/), etc.)
+
+Similarly, strict mode in React is a development-only tool that enforces stricter warnings and checks as you write React code.
+
+You can enable `StrictMode` for any component by simply wrapping the component name as a children prop inside `StrictMode`, like this:
+
+```jsx
+<StrictMode>
+    <Button />
+</StrictMode>
+<StrictMode>
+    <Navbar />
+</StrictMode>
+```
+
+A more recommended way of doing this is to wrap the root `App` component with `StrictMode`. Note that `App` is generally the root component in create-react-app and Next.js.
+
+```jsx
+<StrictMode>
+    <App />
+</StrictMode>
+```
+
+This enforces dev time checks and warnings throughout your React codebase. Of course, make sure to import `StrictMode` like this:
+
+```jsx
+import { StrictMode } from 'react'
+ <StrictMode>
+   .....
+ </StrictMode>
+```
+
+or like this:
+
+```jsx
+import React from 'react'
+ <React.StrictMode>
+  .....
+ </React.StrictMode>
+```
+
+Now, we'll take a deeper look into the various implications of where strict mode shines and helps catch issues earlier in development.
+
+## Warnings on the use of unsafe lifecycle methods
+
+[React's class-based lifecycle methods](https://blog.logrocket.com/react-lifecycle-methods-tutorial-examples/) have gone through a series of API changes. A lot of methods that were once widely used are now officially deprecated and being discouraged in support of more modern APIs.
+
+React's strict mode will now warn developers if they are using these deprecated APIs, such as `componentWillMount`, `componentWillReceiveProps`, and `componentWillUpdate`. These are now considered unsafe to use, so much so that React has added an `UNSAFE` prefix to these API names:
+
+*   `UNSAFE_componentWillMount`
+*   `UNSAFE_componentWillReceiveProps`
+*   `UNSAFE_componentWillUpdate`
+
+Strict mode is even smart enough to warn developers if any of the third-party packages being used contain these deprecated APIs. You can either modify those packages yourself or choose an alternative.
+
+## Recommending the `createRef` API over the legacy string ref
+
+If you've worked with React when the class-based architecture was the de facto way of creating components, you might've used the string ref API as:
+
+```jsx
+class Form extends Component {
+  render() {
+    return <input onClick={() => this.focus()} ref='input' />;
+  }
+  focus() {
+    console.log(this.refs.input.value);
+  }
+}
+```
+
+While being readable and convenient to use, this API is now considered a legacy due to several reasons, including:
+
+*   A wrapped component can't figure out if its child component already has a ref. This problem can be solved using a callback ref pattern
+*   The string ref API can be difficult to read and do static analysis on with a type checker
+
+React's strict mode warns the developers to either use a callback pattern or a more modern `createRef` API instead.
+
+## Warnings about deprecated `findDOMNode` usage
+
+[`findDOMNode`](https://blog.logrocket.com/managing-dom-components-reactdom/) is a class-based API used to target an element deep down in the DOM tree from any component.
+
+```jsx
+class Layout extends Component {
+  componentDidMount() {
+    const nodeElement = ReactDOM.findDOMNode(this);
+  }
+
+  render () {
+    return <Navigation>{this.props.children}</Navigation>;
+  }
+}
+```
+
+This may look fine, but it actually causes problems in React's abstraction principle.
+
+The parent element has to ensure that its children are reaching down and rendering the correct DOM nodes. A big disadvantage is that `findDOMNode` is a one-time calling API only, so if any node element gets changed due to some state update down the line, it won't be reflected and updated with the `findDOMNode` API.
+
+Considering all these shortcomings, strict mode warns you not to use this API and that it may get removed in future React releases.
+
+Most of the time, the DOM element can now be targeted using `ref`. You can simply attach a `ref` reference to the element that you need to target.
+
+```jsx
+class Form extends React.Component {
+  constructor(props) {
+    super(props);
+    this.textInput = React.createRef();    
+  }
+
+  {/* handle textInput.current logic here */}
+  render() {
+    return (
+      <input
+        type="text"
+        ref={this.textInput} 
+      />       
+    );
+  }
+}
+```
+
+## Detecting unexpected side effects
+
+React's strict mode does some interesting things regarding popular inbuilt hooks like `useState`, `useMemo`, and `useReducer`. Specifically, it invokes these functions twice in development and once (as expected) in production mode.
+
+This could create some confusion while debugging the code, but by doing this, strict mode makes sure to check for potential memory leaks. It also helps in making code more deterministic for the strict mode.
+
+Not limited only to functional components, the same behavior of invoking functions twice can be found in class-based architecture as well, such as in `constructor`, `render`, `shouldComponentUpdate`, and more.
+
+If you are using a create-react-app, strict mode comes on default for the entire application. While using these hooks or the state updater functions in class components, you would see even the console messages getting logged twice.
+
+Before v18, React used to immediately silence the second `console.log` method when the functions were called twice. But, with v18, React doesn't suppress any logs to enable more transparency for the developers. All those logs now get called twice during the double invocation of any functions, hooks, etc.
+
+## Warnings on the legacy context API
+
+Similar to the refs API, we also have a legacy context API. Strict mode warns against the use of legacy context API, as it will be removed from future releases. Instead, we have a more modern context API that uses the provider-consumer pattern.
+
+```jsx
+const ThemeContext = React.createContext('dark')
+
+// consume it here
+<ThemeContext.Provider value={data}>
+  {children}
+</ThemeContext.Provider>
+```
+
+This is now the recommended way of handling app state context using the new context API.
+
+## React v18 unmounting and remounting architecture
+
+React v18 introduced new strict mode behavior regarding unmounting and remounting. Now, each element will be unmounted and remounted with the same state and effects as when the element was mounted for the first time.
+
+A typical mounting and remounting cycle could look like this:
+
+*   The element gets mounted for the first time
+*   Side effects are created
+*   Strict mode now mimics the destruction of effects
+*   Side effects will be applied to the mounted components
+
+This makes React code more resilient and helps preserve the state of a UI. For example, if a user is on the first tab and immediately switches back and forth between the first and second tabs, React needs to make sure a correct chunk of elements is getting mounted and destroyed while preserving the correct UI state and side effects.
+
+Starting with v18, strict mode has this additional development-only behavior.
+
+## Conclusion
+
+You have now covered everything in the strict mode update to React v18!
+
+We have seen how strict mode affects development mode tooling. It has its own sets of rules and behavior that ensure strict warnings and checks on the codebase. This not only helps developers make the codebase future-ready but also in refactoring.
+
+The official React team recommends enforcing app-wide strict mode to get the most out of it. For future React releases, it is expected that strict mode will get even more features to help developers like us have better tooling support.
