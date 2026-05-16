@@ -13,6 +13,9 @@ export default async function OpengraphImage({ params }: { params: Promise<{ slu
     const { slug } = await params;
     const post = getPost(slug);
     const title = post?.title ?? "Blog";
+    const date = post?.date
+        ? new Date(post.date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+        : "";
 
     return new ImageResponse(
         (
@@ -30,7 +33,7 @@ export default async function OpengraphImage({ params }: { params: Promise<{ slu
                 }}
             >
                 <div style={{ display: "flex", fontSize: 28, color: "#a1a1aa" }}>
-                    anshul.im / blog
+                    {slug}
                 </div>
                 <div
                     style={{
@@ -44,7 +47,7 @@ export default async function OpengraphImage({ params }: { params: Promise<{ slu
                     {title}
                 </div>
                 <div style={{ display: "flex", fontSize: 28, color: "#a1a1aa" }}>
-                    Abhinav Anshul · Product Engineer
+                    {date}
                 </div>
             </div>
         ),
