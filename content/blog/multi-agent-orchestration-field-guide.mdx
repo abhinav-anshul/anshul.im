@@ -1,0 +1,91 @@
+---
+title: "A hitchhiker's Field Guide to Multi-Agent Orchestration"
+date: 2026-05-17
+description: When multi-agent orchestration actually helps, the topologies worth knowing, and the failure modes that tend to show up in production.
+---
+
+Multi-agent orchestration is trendy. It is also, most of the time, the wrong answer.
+
+The term covers any system where multiple LLM processes — each with its own context window, system prompt, and tool set — are coordinated to accomplish a task. That is a meaningful capability: it lets you parallelize work, isolate context, and specialize behaviour in ways a single agent can't.
+
+It also multiplies token cost, compounds latency, and creates new failure surfaces at every agent boundary. The burden of proof should sit with adding agents, not with avoiding them. This guide is opinionated about when orchestration is worth it, and what tends to break once one of these systems hits production.
+
+## Do you actually need it?
+
+A single agent with a well-curated set of tools handles more than most teams give it credit for. It has one context window to reason over, one prompt to debug, one log to read. If your workflow is mostly linear, latency-sensitive, or fits comfortably in a 200K-token context, stop there.
+
+Three situations genuinely justify multiple agents:
+
+- **Parallel exploration** — independent sub-problems can be fanned out and worked on concurrently. Works best when tasks don't depend on each other's intermediate state.
+- **Specialization** — subtasks need genuinely different tools or instructions (a code-writer and a code-reviewer with different system prompts), not just different "windows" on the same context.
+- **Context pressure** — sub-agents act as compression. They consume large amounts of text and return summaries, so the orchestrator never sees the raw material.
+
+## Topologies
+
+Four patterns cover almost everything you'll see in the wild:
+
+```text
+ORCHESTRATOR–WORKER             SEQUENTIAL PIPELINE
+        ┌───┐                    ┌───┐    ┌───┐    ┌───┐
+        │ O │                    │ A ├───►│ B ├───►│ C │
+        └─┬─┘                    └───┘    └───┘    └───┘
+    ┌─────┼─────┐
+    ▼     ▼     ▼
+  ┌───┐ ┌───┐ ┌───┐
+  │ W │ │ W │ │ W │
+  └───┘ └───┘ └───┘
+
+HIERARCHICAL                    PEER / NETWORK
+        ┌───┐                    ┌───┐ ◄───► ┌───┐
+        │ O │                    │ A │       │ B │
+        └─┬─┘                    └─┬─┘       └─┬─┘
+        ┌─┴─┐                      │   ╲   ╱   │
+        ▼   ▼                      ▼    ╳      ▼
+      ┌───┐ ┌───┐                ┌───┐ ◄───► ┌───┐
+      │ S │ │ S │                │ C │       │ D │
+      └┬─┬┘ └───┘                └───┘       └───┘
+       ▼ ▼
+      ┌──┐┌──┐
+      │w ││w │
+      └──┘└──┘
+```
+
+### Orchestrator–worker
+
+The strongest workflow. One planner decomposes the task and dispatches stateless workers in parallel. Each worker runs in a fresh context, which is why this pattern dominates whenever you want to deep-research something.
+
+### Sequential pipeline
+
+The most boring and most reliable. Output of A feeds B feeds C. Easy to evaluate stage-by-stage, easy to cache, easy to debug. It can take longer end-to-end, but this workflow is the most reliable.
+
+### Hierarchical
+
+Sub-agents spawn their own sub-agents. Powerful for unbounded research problems, but you must hard-cap total spend, or it can lead to those really costly bills.
+
+### Peer network
+
+Not used a lot, as there isn't much observability. Production takes a hit, and traces are hard to debug. Make sure to cap a hard budget before using this workflow.
+
+## Coordination mechanics
+
+Once you've chosen a topology, the real engineering is in how agents exchange information among each other. A worker returns structured output; the orchestrator parses it.
+
+Orchestrator–worker, in pseudocode:
+
+```python
+def orchestrate(task, max_workers=5, max_depth=2):
+    plan = planner.run(task)                  # returns list[Subtask]
+    results = parallel_map(
+        lambda st: worker.run(
+            subtask=st,
+            tools=tools_for(st.kind),
+            return_schema=SubResult,
+        ),
+        plan.subtasks[:max_workers],
+    )
+    return synthesizer.run(task, results)     # final answer
+```
+
+## Rules for production
+
+Start fresh and justify at each agent split what your use case is and what you're trying to do. A topology only works well if you can articulate why you spun it up in the first place.
