@@ -1,0 +1,35 @@
+---
+title: "AI made dashboards cheap, so we make too many"
+date: 2026-05-24
+description: AI made dashboards free, so we're flooding the zone. But monitoring has quietly become a substitute for debugging, not the prelude to it.
+---
+
+Somewhere right now, an engineer is responding to a production alert by opening four dashboards in sequence, nodding at each, and closing them. The issue isn't resolved. It's monitored. Then it resolves itself, or it doesn't, and everyone moves on.
+
+This is the "monitoring the situation" meme as a workflow. The meme got real traction on Twitter during wartime.
+
+![Monitoring the situation meme](/blog/monitoring-the-situation.jpeg)
+
+This is what's happening in tech now. Almost everybody is burning tokens and building dashboards. I've burned a non-trivial number of Claude tokens this quarter generating dashboard panels, SQL for metrics, and "quick dashboards" for things. So has almost everyone I know in tech. The product team has a dashboard. The growth team has three. The platform team has a few. Somewhere, there's a dashboard tracking the health of other dashboards.
+
+AI removed the filter. A vague prompt now produces a working panel in under a minute. The cost of a new dashboard has collapsed to roughly zero, and we're behaving exactly the way economics says we will when something becomes free: flooding the zone.
+
+## The dashboard tells you it broke, not why
+
+When something actually breaks, a dashboard tells you that it broke. It doesn't tell you why. The why lives somewhere harder — in a Datadog trace, in a flamegraph, in logs you have to read slowly, maybe in a SQL query. That work is unglamorous and it fails often. You dig for an hour and find nothing. You dig for another hour and find the wrong thing.
+
+Glancing at a dashboard, by contrast, never fails. The line is up, or down, or flat. You feel informed. You're not, but you feel it.
+
+So the new pattern is: alert fires, dashboard opens, engineer squints, engineer shrugs, engineer closes laptop. The investigation never happens because the dashboard creates the impression that it did. Monitoring has become the substitute for debugging, not the prelude to it.
+
+## A test before you build one
+
+Dashboards aren't bad. On-call triage and real-time alerts are legitimate. The question is whether the dashboard you're about to build — or the one (or a few) you opened five seconds ago — is doing any of those things.
+
+A test I've started using: can I name the specific decision this dashboard will inform, and the last time it informed one? If the answer is no, the dashboard isn't a tool. It's a gesture.
+
+We're getting very good at gesturing.
+
+---
+
+Btw, Andrej has joined Anthropic :)
